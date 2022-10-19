@@ -3,6 +3,8 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_STANDARD 99)
 project(parallel-rdp LANGUAGES CXX C)
 
+set(OpenGL_GL_PREFERENCE GLVND)
+
 set(NAME_PLUGIN_M64P "mupen64plus-video-parallel")
 include_directories(../mupen64plus-core/src/api)
 add_definitions(-DM64P_PLUGIN_API -DGRANITE_VULKAN_MT)
@@ -22,8 +24,8 @@ if(ENABLE_IPO AND (CMAKE_BUILD_TYPE STREQUAL "Release"))
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
 
+find_package(OpenGL REQUIRED)
 if(WIN32)
-    find_package(OpenGL REQUIRED)
     add_definitions(-DVK_USE_PLATFORM_WIN32_KHR)
 endif()
 
@@ -72,6 +74,8 @@ target_include_directories(${NAME_PLUGIN_M64P} PUBLIC
 
 if(WIN32)
     target_link_libraries(${NAME_PLUGIN_M64P} ${OPENGL_LIBRARIES} -lwinmm)
-endif()
+else(WIN32)
+    target_link_libraries(${NAME_PLUGIN_M64P} ${OPENGL_LIBRARIES})
+endif(WIN32)
 
 set_target_properties(${NAME_PLUGIN_M64P} PROPERTIES PREFIX "")
