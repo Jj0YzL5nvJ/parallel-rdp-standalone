@@ -1,29 +1,23 @@
-cmake_minimum_required(VERSION 3.10)
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_C_STANDARD 99)
+cmake_minimum_required(VERSION 3.22)
+
 project(parallel-rdp LANGUAGES CXX C)
+
+set(OpenGL_GL_PREFERENCE GLVND)
 
 set(NAME_PLUGIN_M64P "mupen64plus-video-parallel")
 include_directories(../mupen64plus-core/src/api)
-add_definitions(-DM64P_PLUGIN_API -DGRANITE_VULKAN_MT)
+add_definitions(-DM64P_PLUGIN_API)
 
-# check for INTERPROCEDURAL_OPTIMIZATION support
-if((${CMAKE_VERSION} VERSION_EQUAL 3.9) OR (${CMAKE_VERSION} VERSION_GREATER 3.9))
-    cmake_policy(SET CMP0069 NEW)
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ENABLE_IPO)
 
-    include(CheckIPOSupported)
-    check_ipo_supported(RESULT ENABLE_IPO)
-    if(ENABLE_IPO)
-        message("Interprocedural optimizations enabled")
-    endif(ENABLE_IPO)
-endif()
-
-if(ENABLE_IPO AND (CMAKE_BUILD_TYPE STREQUAL "Release"))
+if(ENABLE_IPO AND (NOT CMAKE_BUILD_TYPE STREQUAL "Debug"))
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+    message("Interprocedural optimizations enabled")
 endif()
 
+find_package(OpenGL REQUIRED)
 if(WIN32)
-    find_package(OpenGL REQUIRED)
     add_definitions(-DVK_USE_PLATFORM_WIN32_KHR)
 endif()
 
@@ -52,6 +46,8 @@ add_library(${NAME_PLUGIN_M64P} SHARED
     vulkan/semaphore_manager.cpp
     vulkan/shader.cpp
     vulkan/texture_format.cpp
+    vulkan/wsi.cpp
+    util/arena_allocator.cpp
     util/logging.cpp
     util/thread_id.cpp
     util/aligned_alloc.cpp
@@ -72,6 +68,14 @@ target_include_directories(${NAME_PLUGIN_M64P} PUBLIC
 
 if(WIN32)
     target_link_libraries(${NAME_PLUGIN_M64P} ${OPENGL_LIBRARIES} -lwinmm)
-endif()
+else(WIN32)
+    target_link_libraries(${NAME_PLUGIN_M64P} ${OPENGL_LIBRARIES})
+endif(WIN32)
 
+set_property(TARGET ${NAME_PLUGIN_M64P} PROPERTY C_VISIBILITY_PRESET hidden)
+set_property(TARGET ${NAME_PLUGIN_M64P} PROPERTY CXX_VISIBILITY_PRESET hidden)
+set_property(TARGET ${NAME_PLUGIN_M64P} PROPERTY VISIBILITY_INLINES_HIDDEN ON)
+if(NOT APPLE)
+    target_link_options(${NAME_PLUGIN_M64P} PRIVATE -Wl,-Bsymbolic -Wl,-Bsymbolic-functions)
+endif(NOT APPLE)
 set_target_properties(${NAME_PLUGIN_M64P} PROPERTIES PREFIX "")
